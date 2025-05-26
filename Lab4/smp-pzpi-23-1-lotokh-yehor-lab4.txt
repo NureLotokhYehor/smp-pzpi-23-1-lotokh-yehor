@@ -1,0 +1,487 @@
+ 
+ 
+Міністерство освіти і науки України 
+ 
+ 
+ 
+Харківський національний університет радіоелектроніки 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+Кафедра програмної інженерії 
+ 
+ 
+ 
+
+
+
+ 
+Звіт з лабораторної роботи №4
+з дисципліни «Скриптові мови програмування» 
+ 
+ 
+ 
+ 
+ 
+
+
+
+
+
+
+ 
+Виконав:                                                                              Перевірили: 
+гр.ПЗПІ-23-1                                                                       Сокорчук Ігор 
+Лотох Єгор                                                              		Петрович 
+ 
+ 
+ 
+
+
+Харків 2025 
+ЗАВДАННЯ 
+
+Використовуючи матеріал попередніх лабораторних робіт, потрібно додати такий функціонал: 1. Прибрати дублювання шапки і підвалу сайту (якщо воно є). 2. Додати сторінку логіна. Обмежити доступ до сайту не залогіненим користувачам. 3. Додати сторінку профілю з можливістю завантажити фото.
+
+ 
+ОПИС ВИКОНАННОЇ РОБОТИ
+ 
+1. В файл index.php (який відповідає за каталог товарів) та cart.php (який відповідає за кошик користувача) були додані перевірки на то чи порожня в сесії змінна userid, яка відповідає за айді користувача. Якщо вона порожня, то на сторінках відображається вміст файлу page404.php [додаток А, index.php, рядки 46-73]
+2. Якщо користувач не авторизован, то щоб скористатися функціоналом сайту йому потрібно авторизуватися, для цього в header.php була додана кнопка “login”. [додаток А, header.php, рядки 25-30]
+3. Після натискання на кнопку “login” користувача перенаправляє на сторінку login.php, де йому відображається форма для авторизації. При натисканні на кнопку “Авторизація” викликається POST запрос, у якому проходить валідація даних та якщо акаунт користувача існує, в сесію записується айді користувача та його перенаправляє на сторінку профілю [додаток А, login.php, рядки 8-25]
+4. Після авторизації у header.php для користувача з’являються пункти меню “Profile” та “Logout”. При натисканні на “Logout” сесія користувача будет очищена та його пере направить на сторінку index.php [додаток А, header.php, рядки 18-24]
+5. На сторінці profile.php користувачу буде відображена форма з його даними, які можна змінити та картинка яку можна завантажити. В базу даних була додана таблиця users, яка зберігає інформацію про користувача [додаток А, profile.php, рядки 74-94]
+6. При натисканні на кнопку “Зберегти” виконується POST запрос та робиться валідація змінених даних. Якщо картинка була завантажена, то робиться перевірка чи не пуста змінна _FILES, яка зберігає завантажені користувачем файли при POST запросі. Якщо вона не пуста, то в папку images додається завантажений файл, йому надається ім’я відповідне айді користувача. Потім при відображенні картинки йде перевірка, чи є у  папці images файл ім’я якого становить айді користувача, якщо є – то завантажується картинка користувача. [додаток А, profile.php, рядки 21-38]
+7. Потім йде валідація інших даних у формі. Для того щоб перевірити вік користувача була додана функція checkAge, до якої передається дата, яку обрав користувач. [додаток А, user_functions.php, рядки 59-69]
+8. Якщо валідація даних пройшла успішно, то викликається функція editUserInfo, яка робить запрос у базу даних та змінює дані користувача у таблиці users. [додаток А, user_functions.php, рядки 45-57]
+9. Якщо валідація пройде не успішно, то під формою буде вивдедена помилка. [додаток А, profile.php, рядки 95-99]
+
+ВИСНОВОК 
+ 
+У результаті лабороторної роботи було розроблено систему авторизації на сайті, профіль сайту та можливість його зміни, використовуючи мову php та вбудований сервер php. Програма демонструє навички роботи з формами, HTTP запитами та роботою з базами даних SQLITE.
+
+ВИКОРИСТАНІ ДЖЕРЕЛА
+
+1. "PHP: Розробка веб-додатків" (Автор: Дмитро Шевчук)
+Книга для початківців і тих, хто хоче поглибити свої знання з PHP, містить багато прикладів та завдань для самостійної роботи.
+2. Документація PHP
+Офіційний сайт PHP: https://www.php.net
+Офіційна документація мови PHP, яка є основним джерелом інформації про функції, методи і можливості PHP.
+ 
+ДОДАТОК А
+Код програми:
+index.php:
+1. <?php
+2.     session_start();
+3. 
+4.     include 'functions.php';
+5.     $products = getProducts();
+6. 
+7.     $errorMessage = "";
+8. 
+9.     if(isset($_SESSION['userid'])) {
+10.         $userid = $_SESSION['userid'];
+11.     }
+12. 
+13.     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+14.         $errorCount = true;
+15.         foreach ($products as $product) {
+16.             $productName = strtolower($product['name']) . 'Count';
+17.             if (isset($_POST[$productName])) {
+18.                 if($_POST[$productName] != 0) {
+19.                     addToCart($product['id'], $_POST[$productName]);
+20.                     $errorCount = false;
+21.                 }
+22.             }
+23.         }
+24.         if($errorCount == false) {
+25.             $errorMessage = "";
+26.             header ( 'Location: cart.php' );
+27.             exit;
+28.         } else {
+29.             $errorMessage = "Будь ласка оберіть товар";
+30.         }
+31.     }
+32. ?>
+33. 
+34. <!DOCTYPE html>
+35. <html lang="en">
+36. <head>
+37.     <meta charset="UTF-8">
+38.     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+39.     <title>Document</title>
+40.     <link rel="stylesheet" href="styles.css">
+41. </head>
+42. <?php
+43.     include 'header.php';
+44. ?>
+45. <body>
+46.     <?php if (isset($_SESSION['userid'])): ?>
+47.     <div class="container">
+48.         <?php
+49.             if(!empty($errorMessage)) {
+50.                 echo "<p>$errorMessage</p>";
+51.             }
+52.         ?>
+53.         <form class="catalog" action="#" method="POST">
+54.             <?php
+55.                 foreach ($products as $product) {
+56.                     ?>
+57.                     <div class="product">
+58.                         <label for="<?= strtolower($product['name']) ?>"><?= $product['name'] ?></label>
+59.                         <input type="number" id="<?= strtolower($product['name']) ?>Count" name="<?= strtolower($product['name']) ?>Count" value="0" min="0">
+60.                         <span>$<?= $product['price'] ?></span>
+61.                     </div>
+62.                     <?php
+63.                 }
+64.             ?>
+65. 
+66.             <div class="submit-form">
+67.                 <button type="submit">Send</button>
+68.             </div>
+69.         </form>
+70.     </div>
+71.     <?php else: ?>
+72.     <?php
+73.         include 'page404.php';
+74.     ?>
+75.     <?php endif; ?>
+76. </body>
+77. <?php
+78.     include 'footer.php';
+79. ?>
+80. </html>
+header.php:
+1. <header>
+2.     <div class="container">
+3.         <nav class="menu">
+4.             <div class="menu-item">
+5.                 <img src="images/home.png" alt="home">
+6.                 <a href="index.php">Home</a>
+7.             </div>
+8.             <div class="menu-item">
+9.                 <img src="images/menu.png" alt="home">
+10.                 <a href="index.php">Products</a>
+11.             </div>
+12.             <?php if (isset($_SESSION['userid'])): ?>
+13.                 <div class="menu-item">
+14.                     <img src="images/cart.png" alt="home">
+15.                     <a href="cart.php">Cart</a>
+16.                 </div>
+17.                 <div class="menu-item">
+18.                     <img src="images/user.png" alt="profile">
+19.                     <a href="profile.php">Profile</a>
+20.                 </div>
+21.                 <div class="menu-item">
+22.                     <img src="images/user.png" alt="Logout">
+23.                     <a href="logout.php">Logout</a>
+24.                 </div>
+25.             <?php else: ?>
+26.                 <div class="menu-item">
+27.                     <img src="images/user.png" alt="login">
+28.                     <a href="login.php">Login</a>
+29.                 </div>
+30.             <?php endif; ?>
+31.         </nav>
+32.     </div>
+33. </header>
+login.php:
+1. <?php
+2.     session_start();
+3. 
+4.     include 'user_functions.php';
+5. 
+6.     $error_message = "";
+7. 
+8.     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+9.         $name = $_POST['username'];
+10.         $pass = $_POST['password'];
+11. 
+12.         if(empty($name) || empty($pass)) {
+13.             $error_message = "Ви не заповнили всі поля";
+14.         }
+15. 
+16.         $userid = login($name, $pass);
+17.         if(!$userid) {
+18.             $error_message = "Користувача не існує або пароль невірний";
+19.         } else {
+20.             $_SESSION['userid'] = $userid;
+21.             $error_message = "";
+22.             updateLoginTime($userid);
+23.             header ( 'Location: profile.php' );
+24.             exit;
+25.         }
+26.     }
+27. ?>
+28. 
+29. <!DOCTYPE html>
+30. <html lang="en">
+31. <head>
+32.     <meta charset="UTF-8">
+33.     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+34.     <title>Document</title>
+35.     <style>
+36.         body {
+37.             font-family: Arial, sans-serif;
+38.             margin: 0;
+39.             padding: 0;
+40.             display: flex;
+41.             justify-content: center;
+42.             align-items: center;
+43.             height: 100vh;
+44.             background-color: #f2f2f2;
+45.         }
+46.         .login-container {
+47.             background-color: white;
+48.             padding: 20px;
+49.             border-radius: 8px;
+50.             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+51.             width: 300px;
+52.         }
+53.         .login-container input {
+54.             width: 100%;
+55.             padding: 10px;
+56.             margin: 10px 0;
+57.             border: 1px solid #ccc;
+58.             border-radius: 4px;
+59.             box-sizing: border-box;
+60.         }
+61.         .login-container button {
+62.             width: 100%;
+63.             padding: 10px;
+64.             background-color: #4CAF50;
+65.             color: white;
+66.             border: none;
+67.             border-radius: 4px;
+68.             cursor: pointer;
+69.         }
+70.         .login-container button:hover {
+71.             background-color: #45a049;
+72.         }
+73.     </style>
+74. </head>
+75. <body>
+76.     <div class="login-container">
+77.         <form action="#" method="post">
+78.             <label for="username">User Name</label>
+79.             <input type="text" id="username" name="username" required>
+80. 
+81.             <label for="password">Password</label>
+82.             <input type="password" id="password" name="password" required>
+83. 
+84.             <button type="submit">Login</button>
+85.         </form>
+86.         <?php if (!empty($error_message)): ?>
+87.             <?php
+88.                 echo "<p style=\"color: red\">$error_message</p>";
+89.             ?>
+90.         <?php endif; ?>
+91.     </div>
+92. </body>
+93. </html>
+profile.php:
+1. <?php
+2.     session_start();
+3. 
+4.     include 'user_functions.php';
+5. 
+6.     $userid = $_SESSION['userid'];
+7.     $userInfo = getUserInfo($userid);
+8. 
+9.     $errorMessage = "";
+10. 
+11.     $uploadDir = 'images/';
+12.     $uploadFilePath = $uploadDir . $userid;
+13.     $userImagePath = "";
+14.     if (file_exists($uploadFilePath)) {
+15.         $userImagePath = $uploadFilePath;
+16.     } else {
+17.         $userImagePath = 'images/image.png';
+18.     }
+19. 
+20.     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+21.         if (isset($_FILES['file-input'])) {
+22.             $fileTmpPath = $_FILES['file-input']['tmp_name'];
+23.             $fileName = $_FILES['file-input']['name'];
+24.             $fileSize = $_FILES['file-input']['size'];
+25.             $fileType = $_FILES['file-input']['type'];
+26. 
+27.             if (!is_dir($uploadDir)) {
+28.                 mkdir($uploadDir, 0755, true);
+29.             }
+30. 
+31.             if (move_uploaded_file($fileTmpPath, $uploadFilePath)) {
+32.                 echo "Файл був завантажен!";
+33.             } else {
+34.                 echo "Помилка при завантаженні файла";
+35.             }
+36.         } else {
+37.             echo $_FILES['file-input']['error'];
+38.         }
+39. 
+40.         $name = $_POST['name'];
+41.         $surname = $_POST['surname'];
+42.         $date = $_POST['dob'];
+43.         $desc = $_POST['description'];
+44.         
+45.         if(empty($name) || empty($surname) || empty($date) || empty($desc)) {
+46.             $errorMessage = "Ви заповнили не всі поля";
+47.         } else if (strlen($name) <= 1 || strlen($surname) <= 1) {
+48.             $errorMessage = "Ім'я користувача повинно бути більше 1 символа";
+49.         } else if(!checkAge($date)) {
+50.             $errorMessage = "Користувач має бути доросліше 16 років";
+51.         } else {
+52.             editUserInfo($userid, $name, $surname, $date, $desc);
+53.             header ( 'Location: profile.php' );
+54.             exit;
+55.         }
+56.     }
+57. ?>
+58. 
+59. <!DOCTYPE html>
+60. <html lang="en">
+61. <head>
+62.     <meta charset="UTF-8">
+63.     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+64.     <title>Document</title>
+65. 
+66.     <link rel="stylesheet" href="styles.css">
+67.     <link rel="stylesheet" href="profile.css">
+68. </head>
+69. <?php
+70.     include 'header.php';
+71. ?>
+72. <body>
+73.     <div class="form-container">
+74.         <form action="#" method="post" enctype="multipart/form-data">
+75.             <div class="form-left">
+76.                 <?php echo "<img src=$userImagePath alt=\"Upload Image\">" ?>
+77.                 <input type="file" id="file-input" name="file-input" class="file-input" accept="image/*">
+78.             </div>
+79.             <div class="form-right">
+80.                 <label for="name">Name</label>
+81.                 <input type="text" id="name" name="name" value="<?php echo $userInfo['name'] ?>" required>
+82. 
+83.                 <label for="surname">Surname</label>
+84.                 <input type="text" id="surname" name="surname" value="<?php echo $userInfo['surname'] ?>" required>
+85. 
+86.                 <label for="dob">Date of Birth</label>
+87.                 <input type="date" id="dob" name="dob" value="<?php echo $userInfo['date'] ?>" required>
+88. 
+89.                 <label for="description">Brief description</label>
+90.                 <textarea id="description" name="description" rows="4" required><?php echo $userInfo['desc'] ?></textarea>
+91. 
+92.                 <button type="submit">Зберегти</button>
+93.             </div>
+94.         </form>
+95.         <?php
+96.             if(!empty($errorMessage)) {
+97.                 echo "<p>$errorMessage</p>";
+98.             }
+99.         ?>
+100.     </div>
+101. </body>
+102. <?php
+103.     include 'footer.php';
+104. ?>
+105. </html>
+page404.php:
+1. <?php
+2.     echo "<p class=\"empty-notify\">Please Login first</p>";
+3. ?>
+logout.php:
+1. <?php
+2.     session_start();
+3.     session_unset();
+4.     session_destroy();
+5. 
+6.     header ( 'Location: index.php' );
+7.     exit;
+8. ?>
+user_functions.php:
+1. <?php
+2.     include 'functions.php';
+3. 
+4.     function login($name, $pass) {
+5.         $db = getDatabase();
+6. 
+7.         $result = $db->query(
+8.         "SELECT
+9.             id
+10.         FROM
+11.             users
+12.         WHERE
+13.             login = '$name' AND pass = '$pass'");
+14.         $row = $result->fetchArray(SQLITE3_ASSOC);
+15.         return $row['id'];
+16.     }
+17. 
+18.     function updateLoginTime($userid) {
+19.         $currentDateTime = date("Y-m-d H:i:s");
+20.         $db = getDatabase();
+21.         $query = "UPDATE
+22.             users
+23.         SET
+24.             time = '$currentDateTime'
+25.         WHERE
+26.             id = '$userid'";
+27.         $db->exec($query);
+28.     }
+29. 
+30.     function getUserInfo($userid) {
+31.         $userInfo = [];
+32.         $db = getDatabase();
+33.         try {
+34.             $result = $db->query(
+35.             "SELECT
+36.                 name,
+37.                 surname,
+38.                 desc,
+39.                 date
+40.             FROM
+41.                 users
+42.             WHERE
+43.                 id = '$userid'");
+44.             while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+45.                 $userInfo['name'] = $row['name'];
+46.                 $userInfo['surname'] = $row['surname'];
+47.                 $userInfo['desc'] = $row['desc'];
+48.                 $userInfo['date'] = $row['date'];
+49.             }
+50.         } catch (Exception $e) {
+51.             echo "Помилка підключення: " . $e->getMessage();
+52.         }
+53. 
+54.         return $userInfo;
+55.     }
+56. 
+57.     function editUserInfo($userid, $name, $surname, $date, $desc) {
+58.         $db = getDatabase();
+59.         $query = "UPDATE
+60.             users
+61.         SET
+62.             name = '$name',
+63.             surname = '$surname',
+64.             date = '$date',
+65.             desc = '$desc'
+66.         WHERE
+67.             id = '$userid'";
+68.         $db->exec($query);
+69.     }
+70. 
+71.     function checkAge($birthdate) {
+72.         $birthdate = new DateTime($birthdate);
+73.         $currentDate = new DateTime();
+74.         $age = $currentDate->diff($birthdate)->y;
+75. 
+76.         if ($age >= 16) {
+77.             return true;
+78.         } else {
+79.             return false;
+80.         }
+81.     }
+82. ?>
