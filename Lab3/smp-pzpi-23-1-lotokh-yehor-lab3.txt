@@ -1,0 +1,362 @@
+ 
+ 
+Міністерство освіти і науки України 
+ 
+ 
+ 
+Харківський національний університет радіоелектроніки 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+Кафедра програмної інженерії 
+ 
+ 
+ 
+
+
+
+ 
+Звіт з лабораторної роботи №3
+з дисципліни «Скриптові мови програмування» 
+ 
+ 
+ 
+ 
+ 
+
+
+
+
+
+
+ 
+Виконав:                                                                              Перевірили: 
+гр.ПЗПІ-23-1                                                                       Сокорчук Ігор 
+Лотох Єгор                                                              		Петрович 
+ 
+ 
+ 
+
+
+Харків 2025 
+ЗАВДАННЯ 
+
+Результатом лабораторної роботи має бути робочий сайт з інтернет магазином.
+
+ 
+ОПИС ВИКОНАННОЇ РОБОТИ
+ 
+1. Спочатку йде створення html структури сайту, header та footer виносяться в окремі блоки та підключаються до головного файлу. [додаток А, index.php, рядки 30-70]
+2. Каталог продуктів зберігається в базі даних. При переході на сторінку з каталогом дані автоматично вигружаються з бази даних в массив products. [додаток А, functions.php, рядки 2-25]
+3. За допомогою циклу foreach перебираються усі продукти в масиві products та виводяться у форму. [додаток А, index.php, рядки 48-64]
+4. Коли користувач заповне форму та натиснить кнопку Send викликається метод Post, та йде перевірка переданих даних, у разі успішної перевірки, товари будуть додані до кошика користувача. [додаток А, index.php, рядки 9-27]
+5. Дані кошика зберігаються в базі даних, стрічки у таблиці зберігають номер поточної сесії, айді продукту та кількість продукту. Якщо товар вже був доданий до кошика, то змінюється його кількість [додаток А, functions.php, рядки 27-43]
+6. При переході на сторінку кошику дані будуть автоматично вивантажені з бази даних до массиву cart. Після чого на основі массиву cart буде згенерована таблиця, де представлені всі товари у кошику. [додаток А, cart.php, рядки 34-72]
+7. Користувач може видалити товар з кошику або очистити таблицю. Запит задається за допомогою атрибуту action. [додаток А, cart.php, рядки 73-76]
+8. Якщо користувач видалить товар з кошику або очистить кошик, дані будуть видалені з бази даних. В атрибут id передаємо айді продукту, після чого перевіряємо його при перевірці у методі GET та видаляємо його з кошику.  [додаток А, cart.php, рядки 6-15]
+9. Якщо таблиця буду очищена або всі товари будуть видалені, робиться перевірка массиву cart, який зберігає в собі всі товари в кошику. Якщо массив пустий, то замість таблиці з товарами виводиться гіпер-посилання “Перейти до покупок”, яке перенаправляє користувача на сторінку з каталогом. [додаток А, cart.php, рядок 33]
+
+ВИСНОВОК 
+ 
+У результаті лабороторної роботи було розроблено сайт інтернет магазину, використовуючи мову php та вбудований сервер php. Програма демонструє навички роботи з формами, HTTP запитами та роботою з базами даних SQLITE.
+
+ВИКОРИСТАНІ ДЖЕРЕЛА
+
+1. "PHP: Розробка веб-додатків" (Автор: Дмитро Шевчук)
+Книга для початківців і тих, хто хоче поглибити свої знання з PHP, містить багато прикладів та завдань для самостійної роботи.
+2. Документація PHP
+Офіційний сайт PHP: https://www.php.net
+Офіційна документація мови PHP, яка є основним джерелом інформації про функції, методи і можливості PHP.
+ 
+ДОДАТОК А
+Код програми:
+index.php:
+1. <?php
+2.     session_start();
+3. 
+4.     include 'functions.php';
+5.     $products = getProducts();
+6. 
+7.     $errorMessage = "";
+8. 
+9.     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+10.         $errorCount = true;
+11.         foreach ($products as $product) {
+12.             $productName = strtolower($product['name']) . 'Count';
+13.             if (isset($_POST[$productName])) {
+14.                 if($_POST[$productName] != 0) {
+15.                     addToCart($product['id'], $_POST[$productName]);
+16.                     $errorCount = false;
+17.                 }
+18.             }
+19.         }
+20.         if($errorCount == false) {
+21.             $errorMessage = "";
+22.             header ( 'Location: cart.php' );
+23.             exit;
+24.         } else {
+25.             $errorMessage = "Будь ласка оберіть товар";
+26.         }
+27.     }
+28. ?>
+29. 
+30. <!DOCTYPE html>
+31. <html lang="en">
+32. <head>
+33.     <meta charset="UTF-8">
+34.     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+35.     <title>Document</title>
+36.     <link rel="stylesheet" href="styles.css">
+37. </head>
+38. <?php
+39.     include 'header.html';
+40. ?>
+41. <body>
+42.     <div class="container">
+43.         <?php
+44.             if(!empty($errorMessage)) {
+45.                 echo "<p>$errorMessage</p>";
+46.             }
+47.         ?>
+48.         <form class="catalog" action="#" method="POST">
+49.             <?php
+50.                 foreach ($products as $product) {
+51.                     ?>
+52.                     <div class="product">
+53.                         <label for="<?= strtolower($product['name']) ?>"><?= $product['name'] ?></label>
+54.                         <input type="number" id="<?= strtolower($product['name']) ?>Count" name="<?= strtolower($product['name']) ?>Count" value="0" min="0">
+55.                         <span>$<?= $product['price'] ?></span>
+56.                     </div>
+57.                     <?php
+58.                 }
+59.             ?>
+60. 
+61.             <div class="submit-form">
+62.                 <button type="submit">Send</button>
+63.             </div>
+64.         </form>
+65.     </div>
+66. </body>
+67. <?php
+68.     include 'footer.html';
+69. ?>
+70. </html>
+functions.php:
+1. <?php
+2.     function getDatabase() {
+3.         $db = new SQLite3('database.db');
+4.         return $db;
+5.     }
+6. 
+7.     function getProducts() {
+8.         $products = [];
+9.         $db = getDatabase();
+10. 
+11.         try {
+12.             $result = $db->query('SELECT id, name, price FROM products');
+13.             while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+14.                 $products[] = [
+15.                     'id' => $row['id'],
+16.                     'name' => $row['name'],
+17.                     'price' => $row['price']
+18.                 ];
+19.             }
+20.         } catch (Exception $e) {
+21.             echo "Помилка з'єдання: " . $e->getMessage();
+22.         }
+23. 
+24.         return $products;
+25.     }
+26. 
+27.     function addToCart($product_id, $count) {
+28.         $db = getDatabase();
+29.         $sessionId = session_id();
+30.         if(!productExistInCart($product_id)) {
+31.             $query = "INSERT INTO cart (sesionId, productId, count)
+32.             VALUES ('$sessionId', '$product_id', '$count')";
+33.         } else {
+34.             $query = "UPDATE
+35.                 cart
+36.             SET
+37.                 count = '$count'
+38.             WHERE
+39.                 productId = '$product_id' AND sesionId = '$sessionId'";
+40.         }
+41.         
+42.         $db->exec($query);
+43.     }
+44. 
+45.     function getCart() {
+46.         $cart = [];
+47.         $sessionId = session_id();
+48.         $db = getDatabase();
+49. 
+50.         try {
+51.             $result = $db->query(
+52.             "SELECT
+53.                 p.id,
+54.                 p.name,
+55.                 p.price,
+56.                 c.count
+57.             FROM
+58.                 cart AS c
+59.             INNER JOIN
+60.                 products AS p
+61.             ON
+62.                 c.productId = p.id
+63.             WHERE
+64.                 c.sesionId = '$sessionId'");
+65.             while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+66.                 $cart[] = [
+67.                     'id' => $row['id'],
+68.                     'name' => $row['name'],
+69.                     'price' => $row['price'],
+70.                     'count' => $row['count']
+71.                 ];
+72.             }
+73.         } catch (Exception $e) {
+74.             echo "Ошибка подключения: " . $e->getMessage();
+75.         }
+76. 
+77.         return $cart;
+78.     }
+79. 
+80.     function productExistInCart($product_id) {
+81.         $sessionId = session_id();
+82.         $db = getDatabase();
+83. 
+84.         $result = $db->query(
+85.         "SELECT
+86.             id
+87.         FROM
+88.             cart
+89.         WHERE
+90.             sesionId = '$sessionId' AND productId = '$product_id'");
+91.         if($result->fetchArray(SQLITE3_ASSOC))
+92.             return true;
+93.         else
+94.             return false;
+95.     }
+96. 
+97.     function removeFromCart($product_id) {
+98.         $db = getDatabase();
+99.         $sessionId = session_id();
+100.         $query = "DELETE FROM
+101.             cart
+102.         WHERE
+103.             sesionId = '$sessionId' AND productId = '$product_id'";
+104.         $db->exec($query);
+105.     }
+106. 
+107.     function clearCart() {
+108.         $db = getDatabase();
+109.         $sessionId = session_id();
+110.         $query = "DELETE FROM
+111.             cart
+112.         WHERE
+113.             sesionId = '$sessionId'";
+114.         $db->exec($query);
+115.     }
+116. ?>
+cart.php:
+1. <?php
+2.     session_start();
+3. 
+4.     include 'functions.php';
+5. 
+6.     if (isset($_GET['action'])) {
+7.         if ($_GET['action'] === 'remove' && isset($_GET['id'])) {
+8.             $product_id = (int)$_GET['id'];
+9.             removeFromCart($product_id);
+10.             header('Location: cart.php');
+11.             exit;
+12.         } else if($_GET['action'] === 'clear') {
+13.             clearCart();
+14.         }
+15.     }
+16.     
+17.     $cart = getCart();
+18. ?>
+19. 
+20. <!DOCTYPE html>
+21. <html lang="en">
+22. <head>
+23.     <meta charset="UTF-8">
+24.     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+25.     <title>Document</title>
+26.     <link rel="stylesheet" href="styles.css">
+27. </head>
+28. <?php
+29.     include 'header.html';
+30. ?>
+31. <body>
+32.     <div class="container">
+33.         <?php if (count($cart) != 0): ?>
+34.             <table>
+35.                 <thead>
+36.                     <tr>
+37.                         <th>id</th>
+38.                         <th>name</th>
+39.                         <th>price</th>
+40.                         <th>count</th>
+41.                         <th>sum</th>
+42.                         <th></th>
+43.                     </tr>
+44.                 </thead>
+45.                 <tbody>
+46.                     <?php
+47.                     $total_sum = 0;
+48.                     foreach ($cart as $product) {
+49.                         $sum = $product['price'] * $product['count'];
+50.                         $total_sum += $sum;
+51.                         echo "<tr>
+52.                                 <td>{$product['id']}</td>
+53.                                 <td>{$product['name']}</td>
+54.                                 <td>\${$product['price']}</td>
+55.                                 <td>{$product['count']}</td>
+56.                                 <td>\${$sum}</td>
+57.                                 <td><a href=\"cart.php?action=remove&id=$product[id]\" class='delete-button'>Delete</a></td>
+58.                             </tr>";
+59.                     }
+60.                     ?>
+61.                     <tr>
+62.                         <td>Total</td>
+63.                         <td></td>
+64.                         <td></td>
+65.                         <td></td>
+66.                         <?php
+67.                         echo "<td>{$total_sum}</td>"
+68.                         ?>
+69.                         <td></td>
+70.                     </tr>
+71.                 </tbody>
+72.             </table>
+73.             <div class="buttons-table">
+74.                 <a href="cart.php?action=clear"><button>Cancel</button></a>
+75.                 <a href="cart.php?action=clear"><button>Pay</button></a>
+76.             </div>
+77.         <?php else: ?>
+78.             <a href="index.php" class="empty-notify">Перейти до покупок</a>
+79.         <?php endif; ?>
+80.     </div>
+81. </body>
+82. <?php
+83.     include 'footer.html';
+84. ?>
+85. </html>
+
+ДОДАТОК Б
+
+Відеозапис презентації результатів лабораторної роботи: https://youtu.be/KrEsd667lok
+
+Хронологічний опис відеозапису:
+00:00 - демонстрація роботи програми
+01:45 - демонстрація коду основного файлу index.php (каталог товарів)
+02:25 – структура бази даних
+02:45 – обробка методу POST
+04:48 - демонстрація коду зміни даних користувача
+04:40 – демонстрація коду файлу cart.php (кошик)
