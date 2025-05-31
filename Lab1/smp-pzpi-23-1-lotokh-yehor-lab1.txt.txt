@@ -1,0 +1,307 @@
+ 
+ 
+Міністерство освіти і науки України 
+ 
+ 
+ 
+Харківський національний університет радіоелектроніки 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+Кафедра програмної інженерії 
+ 
+ 
+ 
+
+
+
+ 
+Звіт з лабораторної роботи №1
+з дисципліни «Скриптові мови програмування» 
+ 
+ 
+ 
+ 
+ 
+
+
+
+
+
+
+ 
+Виконав:                                                                              Перевірили: 
+гр.ПЗПІ-23-1                                                                       Сокорчук Ігор 
+Лотох Єгор                                                              Петрович 
+ 
+ 
+ 
+
+
+Харків 2025 
+ЗАВДАННЯ 
+
+Розробити Bash-скрипт, який обробляє експортований із сайту https://cist.nure.ua/ розклад занять для всіх груп потоку в форматі CSV та перетворює його у формат CSV для завантаження в Google Календар https://support.google.com/.
+
+ 
+ОПИС ВИКОНАННОЇ РОБОТИ
+ 
+1. Спочатку программа перевіряє передані аргументи, для того виконати наступні дії.
+2. Якщо будуть вказані параметри –help або –version програма відобразить довідку у консоль (функції show_help та show_version наведені у додатку А)
+3. Далі йдуть перевірки на випадок якщо користувач не вкаже файл або групу при виклику програми.
+4. Якщо перевірка буде успішною, то програма виведе список доступних файлів та груп, з яких користувачу потрібно буде обрати відповідний файл та групу. Також програма автоматично переведе вхідний файл у UTF-8, якщо кодировка відрізняється.
+5. Якщо все пройде без помилок, то викликається основна функція для пертворення файлу.
+6. Функція process_file приймає параметри групи та файлу, після чого робить перші кроки для обробки вхідного файлу.
+7. Функція також робить перевірку на кодировку та змінює її на UTF-8 при необхідності. Також за допомогою команди sed змінюються деякі записи у вхідному файлі, для того щоб потім при фільтрації не було зайвих ком в одному полі.
+8. Далі викликається команда awk, яка зчитує вхідний файл та формує вихідний файл. В неї передана змінна group, поля розділені за комами.
+9. В блоці BEGIN виводяться колонки для нового файлу.
+10. Далі в основному блоці йде перша обробка строк вхідного файлу. Формується масив sort_key для подальшої фільтрації дат та категорії, які потрібні в подальшому для нумерації занять. На початку робиться перевірка чи містить строка групу, яка була передана користувачем. Якщо не містить, то строка не буде додана до вихідного файлу.
+11. Далі йде останній блок END, вже остаточно формує строки для нового файлу.
+12. На початку сортуємо масив sort_keys від застарішої дати до найновішої, потім за допомогою циклу for та масивів які були зформовані в основному блоці формуємо строки та робимо нумерацію за категоріями. Якщо категорія містить в собі позначку “Лб” і 2 таких однакових категорії були в один день, то нумерація для них буде одна й та сама. В іншому випадку з кожною новою категорією за датами формується нумерація.
+13. Потім форматується дата кожної строки та час, після чого за допомогою команди print формується готова строка для нового файлу.
+14. Наприкінці після виконання команди awk створюється новий файл, який готовий для експорту в google calendar.
+15. Якщо не був вказаний параметр –q або –quiet вміст нового файлу буде виведений у консоль.
+
+ВИСНОВОК 
+ 
+У результаті лабороторної роботи було розроблено консольну программу на мові bash, яка приймає csv файл з сайту cist.nure.ua та на основі його змісту створює новий файл, придатний для експорту в google calendar. Скрипт демонструє основні принципи роботи з текстовими файлами в Bash, використання команд для обробки даних, а також форматування виводу.
+ 
+ДОДАТОК А
+Код програми:
+convert_timetable.sh:
+1. #!/bin/bash
+2. 
+3. show_help() {
+4.     echo "Usage: $0 [--help | --version] | [[-q|--quiet] [академ_група] файл_із_cist.csv]"
+5.     echo "Options:"
+6.     echo "--help       Show help information"
+7.     echo "--version    Show version information"
+8.     echo "-q, --quiet  Suppress output to standard output"
+9.     echo "академ_група  The academic group to process (optional)"
+10.     echo "файл_із_cist.csv  The CSV file to process"
+11. }
+12. 
+13. show_version() {
+14.     echo "Version 1.0"
+15. }
+16. 
+17. process_file() {
+18.     local group=$1
+19.     local file=$2
+20. 
+21.     if [[ ! -f "$file" || ! -r "$file" ]]; then
+22.         echo "Error: File $file not found or not readable." >&2
+23.         exit 1
+24.     fi
+25. 
+26.     file_encoding=$(file -bi "$file" | sed 's/.*charset=//')
+27. 
+28.     if [[ "$file_encoding" != "utf-8" ]]; then
+29.         iconv -f WINDOWS-1251 -t UTF-8 "$file" | sed 's/\r/\r\n/g' > "$file.new"
+30.         mv "$file.new" "$file"
+31.     fi
+32. 
+33.     sed -i 's/ПЗПІ-23-1,2,3,4,5/ПЗПІ-23-1;2;3;4;5/g' "$file"
+34.     sed -i 's/ІМ Пз DL, DL_1/ІМ Пз DL; DL_1/g' "$file"
+35.     sed -i 's/ІМ Конс DL, DL_1/ІМ Конс DL; DL_1/g' "$file"
+36.     sed -i 's/ІМ Екз DL, DL_1/ІМ Екз DL; DL_1/g' "$file"
+37.     sed -i 's/ПЗПІ-23-1;2;3;4;5/ПЗПІ 23 1;2;3;4;5/g' "$file"
+38.     sed -i 's/ІМ Пз DL_1, DL/ІМ Пз DL_1; DL/g' "$file"
+39. 
+40.     awk -F, -v group="$group" '
+41.     BEGIN {
+42.         print "Subject,Start Date,Start Time,End Date,End Time,Description"
+43.     }
+44.     {
+45.         split(group, group_list, ",")
+46.         
+47.         match_found = 0
+48.         for (i in group_list) {
+49.             if ($1 ~ group_list[i]) {
+50.                 match_found = 1
+51.                 break
+52.             }
+53.         }
+54. 
+55.         if (match_found) {
+56.             start_date = $2
+57.             start_time = $3
+58.             
+59.             gsub(/"/, "", start_date)
+60.             gsub(/"/, "", start_time)
+61.             split(start_date, d, ".")
+62.             sort_date = d[3] d[2] d[1]
+63.             date_key = d[3] d[2] d[1]
+64.             split(start_time, t, ":")
+65.             sort_time = sprintf("%02d%02d", t[1], t[2])
+66.             sort_key = sort_date sort_time
+67.             subject = $1
+68. 
+69.             gsub(/^.* - /, "", subject)
+70.             subject = substr(subject, 1, length(subject) - 1)
+71.             
+72.             split(subject, parts, " ")
+73. 
+74.             category = parts[1] " " parts[2] " " parts[3]
+75.             # Store row data
+76.             row[NR] = $0
+77.             sort_keys[NR] = sort_key
+78.             categories[NR] = category
+79.             subjects[NR] = subject
+80.             dates[NR] = date_key
+81.         }
+82.     }
+83.     END {
+84.         n = asorti(sort_keys, sorted, "@val_str_asc")
+85.         
+86.         delete counters
+87.         delete last_date
+88.         
+90.         for (i = 1; i <= n; i++) {
+91.             idx = sorted[i]
+92.             split(row[idx], fields, ",")
+93.             
+94.             start_date = fields[2]
+95.             start_time = fields[3]
+96.             end_date = fields[4]
+97.             end_time = fields[5]
+98.             description = fields[12]
+99.             subject = subjects[idx]
+100.             category = categories[idx]
+101.             date = dates[idx]
+102.             
+103.             counter_key = category
+104.             if (category ~ / Лб /) {
+105.                 if (!(counter_key in last_date) || last_date[counter_key] != date) {
+106.                     if (!(counter_key in counters)) {
+107.                         counters[counter_key] = 1
+108.                     } else {
+109.                         counters[counter_key]++
+110.                     }
+111.                     last_date[counter_key] = date
+112.                 }
+113.             } else {
+114.                 if (!(counter_key in counters)) {
+115.                     counters[counter_key] = 1
+116.                 } else {
+117.                     counters[counter_key]++
+118.                 }
+119.             }
+120.             
+121.             subject = subject " №" counters[counter_key]
+122.             
+123.             gsub(/"/, "", start_date)
+124.             gsub(/"/, "", start_time)
+125.             gsub(/"/, "", end_date)
+126.             gsub(/"/, "", end_time)
+127.             
+128.             split(start_date, start, ".")
+129.             start_formatted = start[1] "/" start[2] "/" start[3]
+130.             
+131.             split(end_date, end, ".")
+132.             end_formatted = end[1] "/" end[2] "/" end[3]
+133.             
+134.             split(start_time, time, ":")
+135.             start_hour = time[1]
+136.             start_minute = time[2]
+137.             am_pm = (start_hour < 12) ? "AM" : "PM"
+138.             if (start_hour > 12) start_hour -= 12
+139.             formatted_start = start_hour ":" start_minute " " am_pm
+140.             
+141.             split(end_time, time, ":")
+142.             end_hour = time[1]
+143.             end_minute = time[2]
+144.             am_pm = (end_hour < 12) ? "AM" : "PM"
+145.             if (end_hour > 12) end_hour -= 12
+146.             formatted_end = end_hour ":" end_minute " " am_pm
+147.             
+148.             print "\"" subject "\",\"" start_formatted "\",\"" formatted_start "\",\"" end_formatted "\",\"" formatted_end "\"," description
+149.         }
+150.     }
+151.     ' "$file" > "Google_TimeTable_$(date +'%d_%m_%Y').csv"
+152. 
+153.     if [[ "$quiet" != "true" ]]; then
+154.         cat "Google_TimeTable_$(date +'%d_%m_%Y').csv"
+155.     fi
+156. }
+157. 
+158. quiet=false
+159. group=""
+160. file=""
+161. 
+162. while [[ $# -gt 0 ]]; do
+163.     case $1 in
+164.         --help)
+165.             show_help
+166.             exit 0
+167.             ;;
+168.         --version)
+169.             show_version
+170.             exit 0
+171.             ;;
+172.         -q|--quiet)
+173.             quiet=true
+174.             shift
+175.             ;;
+176.         *)
+177.             if [[ -z "$group" ]]; then
+178.                 group=$1
+179.             else
+180.                 file=$1
+181.             fi
+182.             shift
+183.             ;;
+184.     esac
+185. done
+186. 
+187. if [[ -z "$group" || -z "$file" ]]; then
+188.     echo "No group or file specified, displaying available files and groups..."
+189.     
+190.     select file in $(ls TimeTable_??_??_20??.csv | sort); do
+191.         if [[ -z "$file" ]]; then
+192.             echo "Invalid selection. Exiting."
+193.             exit 1
+194.         fi
+195.         break
+196.     done
+197. 
+198.     file_encoding=$(file -bi "$file" | sed 's/.*charset=//')
+199. 
+200.     if [[ "$file_encoding" != "utf-8" ]]; then
+201.         iconv -f WINDOWS-1251 -t UTF-8 "$file" | sed 's/\r/\r\n/g' > "$file.new"
+202.         mv "$file.new" "$file"
+203.     fi
+204. 
+205.     groups=$(awk -F, 'NR > 1 {print $1}' "$file" | cut -d" " -f1 | sort | uniq | sed 's/[\"\'']//g')
+206. 
+207.     IFS=$'\n' read -rd '' -a groups_array <<< "$groups"
+208. 
+209.     groups_length=${#groups_array[@]}
+210. 
+211.     if [[ $groups_length -ne 1 ]]; then
+212.         select group in "${groups_array[@]}"; do
+213.             if [[ -z "$group" ]]; then
+214.                 echo "Invalid selection. Exiting."
+215.                 exit 1
+216.             fi
+217.             break
+218.         done
+219.     else
+220.         group="${groups_array[0]}"
+221.     fi
+222. fi
+223. 
+224. process_file "$group" "$file"
+
+ДОДАТОК Б
+
+Відеозапис презентації результатів лабораторної роботи: https://youtu.be/uLNBqObfKEE
+
+Хронологічний опис відеозапису:
+00:00 - підготовка файлів для демонстрації                                                    00:40 - опис приймання параметрів корситувача                                           
+06:30 - опис коду програми, який фільтрує вхідний файл та створює новий 
+11:00 - опис коду який відповідає за кінцеве форматування нових строк та нумерацію категорій                                                                                         18:50 - демонстрація екпорту згенерованного файлу до гугл календаря    
